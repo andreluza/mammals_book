@@ -1,16 +1,5 @@
-require(here)
-require(openxlsx)
-require(sf)
-require(rnaturalearth)
-require(ggplot2)
-require(sp)
-require(raster)
-library(rasterVis)
-library(rgdal)
-library(grid)
-library(scales)
-library(viridis)  # better colors for everyone
-library(ggthemes) # theme_map()
+# load packages
+source("R/packages.R")
 
 # load coord data
 data_coords <- read.xlsx(here ("data","data_collection.xlsx"),sheet=1)
@@ -171,7 +160,6 @@ barplot_n <- ggplot (data_bar, aes(x= (Var1),y=Freq,fill=Freq)) +
 # https://cran.r-project.org/web/packages/tidytext/vignettes/tidying_casting.html
 # https://www.tidytextmining.com/topicmodeling.html
 
-
 # aggregate data
 papers <- unique(data_coords$`UT.(Unique.WOS.ID)`)
 
@@ -185,9 +173,6 @@ subset_data <- lapply (papers, function (i) {
 subset_data<- do.call (rbind.data.frame, subset_data)# melt
 
 # text into corpus 
-require(corpus)
-require(tm)
-
 text <- as_corpus_text(subset_data$Abstract)
 # edits
 clean_text <- tolower(text)
@@ -222,7 +207,6 @@ clean_text <- stringr::str_replace_all(clean_text, stopwords_regex, '')
 text_terms <- term_matrix(clean_text)# ,ngrams =1
 
 # choose the number of topics
-require("ldatuning")
 result <- FindTopicsNumber(
   text_terms,
   topics = seq(from = 2, to = 20, by = 1),
@@ -232,9 +216,14 @@ result <- FindTopicsNumber(
   mc.cores = 2L,
   verbose = TRUE
 )
-
-# plot
 (FindTopicsNumber_plot(result))
+
+# also save the plot
+pdf (file=here ("output", "Ntopics.pdf"))
+
+(FindTopicsNumber_plot(result))
+
+dev.off()
 
 # topics to choose (maximum grifitths)
 n_topics<- result[which(result$CaoJuan2009 == min(result$CaoJuan2009)),"topics"]
@@ -249,8 +238,6 @@ ap_topics <- tidy(chapters_lda, matrix = "beta")
 ap_topics <- ap_topics[which(nchar (ap_topics$term)>=3),]
 
 # represent
-library(ggplot2)
-library(dplyr)
 
 ap_top_terms <- ap_topics %>%
   group_by(topic) %>%
@@ -283,12 +270,10 @@ plot3 <- ap_top_terms %>%
 plot3
 
 ## classification per paper
-#chapters_gamma <- tidy(chapters_lda, matrix = "gamma")
-#chapters_gamma
+chapters_gamma <- tidy(chapters_lda, matrix = "gamma")
+chapters_gamma
 
-# arrange
-require(gridExtra)
-
+# arrange all the plots
 pdf(here ("output","fig1.pdf"),
 	height=7,width=12)
 grid.arrange(barplot_n,
