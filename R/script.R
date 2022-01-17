@@ -89,12 +89,12 @@ rs1_total<-clamp(rs1, lower=0, useValues=T)
 
 plot2 <- gplot(rs1_total) +
   geom_tile(aes(x=x, y=y, fill=value), alpha=1) + 
-  coord_fixed (xlim = c( -60, -45), 
-               ylim = c(-40, -20), ratio = 1) +
+  coord_fixed (xlim = c( -59, -48), 
+               ylim = c(-35, -23), ratio = 1) +
   scale_fill_viridis(option="magma",direction=-1,begin=0,
                      breaks = seq (range(values(rs1_total),na.rm=T)[1],
                                    range(values(rs1_total),na.rm=T)[2],
-                                   1),
+                                   2),
                      limits=c(range(values(rs1_total),na.rm=T)[1]+1,
                               range(values(rs1_total),na.rm=T)[2]),
                      na.value=NA,
@@ -229,16 +229,13 @@ dev.off()
 n_topics<- result[which(result$CaoJuan2009 == min(result$CaoJuan2009)),"topics"]
 
 # topic modeling
-require(topicmodels)
 chapters_lda <- LDA(text_terms, k = n_topics, 
                     control = list(seed = 1234))
 # tidy text
-library(tidytext)
 ap_topics <- tidy(chapters_lda, matrix = "beta")
 ap_topics <- ap_topics[which(nchar (ap_topics$term)>=3),]
 
 # represent
-
 ap_top_terms <- ap_topics %>%
   group_by(topic) %>%
   slice_max(beta, n = 10) %>% 
@@ -247,9 +244,9 @@ ap_top_terms <- ap_topics %>%
 
 # labels
 labels_facet <- c(
-  `1` = "Distribution & activity",
-  `2` = "Small mammals' ecology",
-  `3` = "NA"
+  `1` = "Coastal plain research",
+  `2` = "Population ecology & genetics",
+  `3` = "Rodent ecology"
 )
 
 plot3 <- ap_top_terms %>%
@@ -260,7 +257,7 @@ plot3 <- ap_top_terms %>%
              labeller = as_labeller(labels_facet))+
              theme_classic() + 
   theme (axis.text.y = element_text(size=10),
-         axis.text.x = element_text(size=7))+
+         axis.text.x = element_text(size=7, angle=45))+
   scale_y_reordered() + 
   scale_fill_viridis_d(option="magma",begin=0.1,end = 0.8) + 
   xlab("Probability (Latent Dirichlet allocation, LDA)") + 
@@ -275,7 +272,7 @@ chapters_gamma
 
 # arrange all the plots
 pdf(here ("output","fig1.pdf"),
-	height=7,width=12)
+	height=7,width=13)
 grid.arrange(barplot_n,
              plot3,
              plot2_total,
