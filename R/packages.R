@@ -22,5 +22,7 @@ require(gridExtra)
 require(corpus)
 require(tm)
 require("ldatuning")
+require(topicmodels)
+library(tidytext)
 
 
