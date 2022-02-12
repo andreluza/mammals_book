@@ -3,4 +3,4 @@
 .RData
 .Ruserdata
 data/MPAs
-output/fig1_ink.svg
+output/*.svg
