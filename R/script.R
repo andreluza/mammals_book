@@ -16,7 +16,13 @@ data_coords <- (data_coords [is.na(data_coords$Locality_name)!= T,])
 unique(data_coords$`UT.(Unique.WOS.ID)`)
 
 # N coords
-dim(data_coords)
+nrow(data_coords)
+
+# aggregated coords
+nrow(data_coords[-grep("WOS",data_coords$`UT.(Unique.WOS.ID)`),])
+
+# WOS coords
+nrow(data_coords) - nrow(data_coords[-grep("WOS",data_coords$`UT.(Unique.WOS.ID)`),])
 
 # transform coords
 #data_coords$LatDecDeg <- round(as.numeric(data_coords$LatDecDeg),3)
@@ -209,7 +215,7 @@ text_terms <- term_matrix(clean_text)# ,ngrams =1
 # choose the number of topics
 result <- FindTopicsNumber(
   text_terms,
-  topics = seq(from = 2, to = 20, by = 1),
+  topics = seq(from = 3, to = 10, by = 1),
   metrics = c("Griffiths2004", "CaoJuan2009", "Arun2010", "Deveaud2014"),
   method = "Gibbs",
   control = list(seed = 77),
@@ -245,8 +251,7 @@ ap_top_terms <- ap_topics %>%
 # labels
 labels_facet <- c(
   `1` = "Coastal plain research",
-  `2` = "Population ecology & genetics",
-  `3` = "Rodent ecology"
+  `2` = "Rodent ecology"
 )
 
 plot3 <- ap_top_terms %>%
@@ -268,7 +273,14 @@ plot3
 
 ## classification per paper
 chapters_gamma <- tidy(chapters_lda, matrix = "gamma")
-chapters_gamma
+chapters_gamma <-  reshape::cast (data = chapters_gamma,
+      formula = document ~topic,
+      values = "gamma")
+chapters_gamma <- cbind (chapters_gamma,
+                         authors = subset_data$Authors)
+# save
+write.xlsx(chapters_gamma,
+           file = here ("output", "gamma.xlsx"))
 
 # arrange all the plots
 pdf(here ("output","fig1.pdf"),
