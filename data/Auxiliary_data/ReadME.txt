@@ -1,0 +1,1 @@
+Auxiliary_references suggested by a coauthor (J Bicca-Marques) and the Reviewer 2
