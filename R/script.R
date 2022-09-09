@@ -1,3 +1,5 @@
+
+
 # load packages
 source("R/packages.R")
 
@@ -31,7 +33,11 @@ nrow(data_coords) - nrow(data_coords[-grep("WOS",data_coords$`UT.(Unique.WOS.ID)
 # convert the data frame into a spatial coordinates object
 complet_set_of_coordinates_sp <- (data_coords[,c("LatDecDeg", "LongDecDeg")])
 coordinates(complet_set_of_coordinates_sp) <- ~LongDecDeg + LatDecDeg # as coord
-crs (complet_set_of_coordinates_sp)<- "+proj=longlat +datum=WGS84 +no_defs" # set crs
+crs (complet_set_of_coordinates_sp) <- "+proj=longlat +ellps=GRS80 +no_defs" # set crs
+# a small buffer around to consider some uncertainty on coords and the map
+plot(complet_set_of_coordinates_sp[1])
+complet_set_of_coordinates_sp <- gBuffer (complet_set_of_coordinates_sp, byid=T,width = 0.1)
+plot(complet_set_of_coordinates_sp[1],add=T)
 
 # create a grid for mapping
 # based on the extent of extracted data
@@ -55,9 +61,29 @@ crs(grd_raster) <-crs(complet_set_of_coordinates_sp)
 campos<- readOGR(dsn= here("data","Re_ Shapefile Campos Sulinos base IBGE 1_250mil",
                            "campos sulinos_base ibge 250mil"),encoding="latin1", 
                  layer="campos sulinos_base ibge 250mil")
+crs (campos) <- "+proj=longlat +ellps=GRS80 +no_defs" # set crs
+
+
+
+#plot(complet_set_of_coordinates_sp[1])
+#plot(gBuffer(complet_set_of_coordinates_sp[1],width=0.1),add=T)
+
 # mask campos
 grd_raster <- (crop (grd_raster,extent(campos)))
 grd_raster <- (mask (grd_raster,campos))
+
+# grid coordinates within the campos 
+grid_points <- SpatialPoints(coordinates(grd_raster))
+crs (grid_points) <- crs (grd_raster)
+points_that_overlap <-over (grid_points,
+                            campos)
+
+
+
+# find the coordinates falling into the campos sulinos
+data_coords$inCampos <- over (complet_set_of_coordinates_sp, 
+                              (campos))$Bioma
+data_coords<-data_coords[is.na(data_coords$inCampos) == F,] # filter
 
 # table(matched_data_coordinates_mpas_institutions$YearCat)
 data_to_map <- unique(data_coords$`UT.(Unique.WOS.ID)`)
@@ -88,8 +114,15 @@ stack_DOIS <- (stack(complet_set_of_coordinates))
 rs1 <- calc(stack_DOIS, sum,na.rm=T)
 rs1_total<-clamp(rs1, lower=0, useValues=T)
 
+
 # number of cells covered by research
-(table(values(rs1_total)>0))[2]/sum(table(values(rs1_total)>0))
+
+sum(values (rs1_total) [is.na(points_that_overlap$Bioma) != T]>0)/length(values (rs1_total) [is.na(points_that_overlap$Bioma) != T])
+
+
+# approximate area in km2
+(length(values (rs1_total) [is.na(points_that_overlap$Bioma) != T]) -
+sum(values (rs1_total) [is.na(points_that_overlap$Bioma) != T]>0)) * 55
 
 # plot - number of sites per cell
 
@@ -100,7 +133,7 @@ plot2 <- gplot(rs1_total) +
   scale_fill_viridis(option="magma",direction=-1,begin=0,
                      breaks = seq (range(values(rs1_total),na.rm=T)[1],
                                    range(values(rs1_total),na.rm=T)[2],
-                                   2),
+                                   3),
                      limits=c(range(values(rs1_total),na.rm=T)[1]+1,
                               range(values(rs1_total),na.rm=T)[2]),
                      na.value=NA,
@@ -122,18 +155,20 @@ plot2_total <- plot2 + geom_polygon(data=southAme,
                                     aes(x=long, y=lat, group=group),
                                     size = 0.1, 
                                     fill="white", 
-                                    colour="gray75",alpha=0.1) + 
+                                    colour="gray50",alpha=0.1) + 
   xlab("Longitude") + ylab("Latitude")
 
 # plot campos
 plot2_total <- plot2_total + geom_polygon(data=campos, 
                               aes(x=long, y=lat, group=group),
                               size = 0.1, 
-                              fill="gray95", 
-                              colour="gray95",
+                              fill="gray80", 
+                              colour="gray80",
                               alpha=1)
 
 plot2_total
+
+
 
 # papers per year
 
@@ -156,7 +191,8 @@ barplot_n <- ggplot (data_bar, aes(x= (Var1),y=Freq,fill=Freq)) +
   ggtitle ("A) Number of articles over time")+
   theme(axis.text.x = element_text(angle=0),
         legend.position = "none") + 
-  scale_fill_viridis_c(option="magma", direction=-1,begin=0.2)
+  scale_fill_viridis_c(option="magma", direction=-1,begin=0.2) + 
+  geom_smooth(se=F,col = "gray70")
 
 # --------------------------------------------
 # topic modeling
@@ -179,7 +215,11 @@ subset_data <- lapply (papers, function (i) {
 subset_data<- do.call (rbind.data.frame, subset_data)# melt
 
 # text into corpus 
-text <- as_corpus_text(subset_data$Abstract)
+text <- as_corpus_text(paste (subset_data$Article.Title,
+                              subset_data$Abstract,
+                              sep= " ")
+)
+
 # edits
 clean_text <- tolower(text)
 clean_text <- gsub("[']", "", clean_text) 
@@ -192,12 +232,10 @@ clean_text <- gsub("southern", " ", clean_text)
 clean_text <- gsub("south", " ", clean_text)
 clean_text <- gsub("species", " ", clean_text)
 clean_text <- gsub("study", " ", clean_text)
-clean_text <- gsub("area*", " ", clean_text)
-clean_text <- gsub("mammal*", " ", clean_text)
 clean_text <- gsub("forests", "forest", clean_text)
 clean_text <- gsub("grasslands", "grassland", clean_text)
 clean_text <- gsub("occupation", "occupancy", clean_text)
-clean_text <- gsub("[[:space:]]+", " ", clean_text)
+
 clean_text <- trimws(clean_text) # remove white space
 
 # remove stopwords
@@ -215,7 +253,7 @@ text_terms <- term_matrix(clean_text)# ,ngrams =1
 # choose the number of topics
 result <- FindTopicsNumber(
   text_terms,
-  topics = seq(from = 3, to = 10, by = 1),
+  topics = seq(from = 3, to = 20, by = 1),
   metrics = c("Griffiths2004", "CaoJuan2009", "Arun2010", "Deveaud2014"),
   method = "Gibbs",
   control = list(seed = 77),
@@ -235,8 +273,10 @@ dev.off()
 n_topics<- result[which(result$CaoJuan2009 == min(result$CaoJuan2009)),"topics"]
 
 # topic modeling
-chapters_lda <- LDA(text_terms, k = n_topics, 
+chapters_lda <- LDA(text_terms,
+                    k = n_topics, 
                     control = list(seed = 1234))
+
 # tidy text
 ap_topics <- tidy(chapters_lda, matrix = "beta")
 ap_topics <- ap_topics[which(nchar (ap_topics$term)>=3),]
@@ -250,8 +290,13 @@ ap_top_terms <- ap_topics %>%
 
 # labels
 labels_facet <- c(
-  `1` = "Coastal plain research",
-  `2` = "Rodent ecology"
+  `1` = "Small Mammals' Ecology",
+  `2` = "Primatology",
+  `3` = "Conservation",
+  `4` = "Feeding Ecology & Behavior",
+  `5` = "Systematics & Phylogenetics"
+  
+  
 )
 
 plot3 <- ap_top_terms %>%

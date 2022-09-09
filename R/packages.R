@@ -4,6 +4,7 @@ require(openxlsx)
 
 # space and plots
 require(sf)
+require(rgeos)
 require(rnaturalearth)
 require(ggplot2)
 require(sp)
@@ -24,5 +25,6 @@ require(tm)
 require("ldatuning")
 require(topicmodels)
 library(tidytext)
+
 
 
