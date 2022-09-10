@@ -9,6 +9,7 @@ data_coords <- read.xlsx(here ("data","data_collection.xlsx"),sheet=1)
 # unique papers
 # all papers
 unique(data_coords$`UT.(Unique.WOS.ID)`)
+length(unique(unique(data_coords$Authors)))
 
 # aggregated papers
 length(unique(data_coords$`UT.(Unique.WOS.ID)`)) - length(grep("WOS", unique(data_coords$`UT.(Unique.WOS.ID)`)))
@@ -127,7 +128,7 @@ sum(values (rs1_total) [is.na(points_that_overlap$Bioma) != T]>0)) * 55
 # plot - number of sites per cell
 
 plot2 <- gplot(rs1_total) +
-  geom_tile(aes(x=x, y=y, fill=value), alpha=1) + 
+  geom_tile(aes(x=x, y=y, fill=value), alpha=0.75) + 
   coord_fixed (xlim = c( -59, -48), 
                ylim = c(-35, -23), ratio = 1) +
   scale_fill_viridis(option="magma",direction=-1,begin=0,
@@ -172,18 +173,30 @@ plot2_total
 
 # papers per year
 
-data_bar<-data.frame(table(aggregate (data_coords, by=list(data_coords$`UT.(Unique.WOS.ID)`), 
-                                      FUN="mean")[,"Publication.Year"]))
-to_paste <- data.frame ("Var1"=as.factor(seq(2002,2021) [which(seq(2002,2021) %in% data_bar$Var1 == F)]),
-                   "Freq"=0)
-# paste
-data_bar<- rbind (data_bar,
-                  to_paste)
-# order
-data_bar<- data_bar[order(as.numeric(paste(data_bar$Var1))),]
-data_bar$Var1 <- as.numeric(paste(data_bar$Var1))
+data_bar<- data.frame (year = seq (1983,2021,1),
+                       n_pub = unlist(
+                                  lapply (seq (1983,2021,1), function (i)
+                                    length(unique(data_coords$`UT.(Unique.WOS.ID)` [which(data_coords$Publication.Year == i)]))
+                                  )
+                                  )
+)
 
-barplot_n <- ggplot (data_bar, aes(x= (Var1),y=Freq,fill=Freq)) + 
+# average up to 2008
+mean(data_bar$n_pub[which(data_bar$year < 2008)])
+sd(data_bar$n_pub[which(data_bar$year < 2008)])
+
+
+# whats happened in 2008 and 2011?
+
+View(data_coords [which(data_coords$Publication.Year %in% c("2008", "2011")),])
+
+
+# since 2008
+mean(data_bar$n_pub[which(data_bar$year >= 2008)])
+sd(data_bar$n_pub[which(data_bar$year >= 2008)])
+
+
+barplot_n <- ggplot (data_bar, aes(x= (year),y=n_pub,fill=n_pub)) + 
   geom_bar(stat="identity")+
   theme_classic() + 
   xlab("Year") +
@@ -192,7 +205,10 @@ barplot_n <- ggplot (data_bar, aes(x= (Var1),y=Freq,fill=Freq)) +
   theme(axis.text.x = element_text(angle=0),
         legend.position = "none") + 
   scale_fill_viridis_c(option="magma", direction=-1,begin=0.2) + 
-  geom_smooth(se=F,col = "gray70")
+  geom_smooth(se=F,col = "gray70") + 
+  scale_y_continuous(breaks = seq(0, max(data_bar$n_pub), 
+                                  len = 5))
+barplot_n
 
 # --------------------------------------------
 # topic modeling
@@ -235,7 +251,6 @@ clean_text <- gsub("study", " ", clean_text)
 clean_text <- gsub("forests", "forest", clean_text)
 clean_text <- gsub("grasslands", "grassland", clean_text)
 clean_text <- gsub("occupation", "occupancy", clean_text)
-
 clean_text <- trimws(clean_text) # remove white space
 
 # remove stopwords
@@ -290,11 +305,9 @@ ap_top_terms <- ap_topics %>%
 
 # labels
 labels_facet <- c(
-  `1` = "Small Mammals' Ecology",
-  `2` = "Primatology",
-  `3` = "Conservation",
-  `4` = "Feeding Ecology & Behavior",
-  `5` = "Systematics & Phylogenetics"
+  `1` = "Mammal ecology and taxonomy",
+  `2` = "Species distribution",
+  `3` = "Population ecology"
   
   
 )
@@ -306,7 +319,7 @@ plot3 <- ap_top_terms %>%
   facet_wrap(~ topic, scales = "free",
              labeller = as_labeller(labels_facet))+
              theme_classic() + 
-  theme (axis.text.y = element_text(size=10),
+  theme (axis.text.y = element_text(size=8),
          axis.text.x = element_text(size=7, angle=45))+
   scale_y_reordered() + 
   scale_fill_viridis_d(option="magma",begin=0.1,end = 0.8) + 
@@ -327,16 +340,56 @@ chapters_gamma <- cbind (chapters_gamma,
 write.xlsx(chapters_gamma,
            file = here ("output", "gamma.xlsx"))
 
+
+# taxon
+
+
+# is there a taxonomic bias within mammals?
+
+list_papers <- unique(data_coords$`UT.(Unique.WOS.ID)`)
+
+# the number of papers per taxon
+tab_taxon <- data.frame(table(unlist (lapply (list_papers, function (i)
+  
+  unique(data_coords$Order[which(data_coords$`UT.(Unique.WOS.ID)` == i)])
+))))
+
+
+
+barplot_taxon <- ggplot (tab_taxon, aes(x= reorder(Var1, -Freq ),
+                                        y=Freq,
+                                        fill=Freq)) + 
+  geom_bar(stat="identity")+
+  theme_classic() + 
+  xlab("Mammalian order") +
+  ylab("Number of articles") +
+  ggtitle ("D) Taxonomic coverage")+
+  theme(axis.text.x = element_text(angle=45,size=8),
+        legend.position = "none") + 
+  scale_fill_viridis_c(option="magma", direction=-1,begin=0.2) + 
+  geom_smooth(se=F,col = "gray70") + 
+  scale_y_continuous(breaks = seq(0, max(data_bar$n_pub), 
+                                  len = 5))
+barplot_taxon
+
 # arrange all the plots
 pdf(here ("output","fig1.pdf"),
 	height=7,width=13)
 grid.arrange(barplot_n,
              plot3,
              plot2_total,
+             barplot_taxon,
+             nrow=10,ncol=4,
              layout_matrix = rbind (c(1,1,3,3),
+                                    c(1,1,3,3),
                                     c(1,1,3,3),
                                     c(2,2,3,3),
                                     c(2,2,3,3),
-                                    c(2,2,3,3)))
+                                    c(2,2,3,3),
+                                    c(4,4,3,3),
+                                    c(4,4,3,3),
+                                    c(4,4,3,3),
+                                    c(4,4,3,3)))
 dev.off()
+
 
