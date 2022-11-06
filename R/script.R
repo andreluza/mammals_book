@@ -139,7 +139,7 @@ plot2 <- gplot(rs1_total) +
                               range(values(rs1_total),na.rm=T)[2]),
                      na.value=NA,
                      name="# coordinates") +
-  ggtitle ("C) Mapping of the scientific knowledge") + 
+  ggtitle ("D) Mapping of the scientific knowledge") + 
   theme_classic() +
   theme (legend.position = "top",
          legend.direction = "horizontal") + 
@@ -299,18 +299,19 @@ ap_topics <- ap_topics[which(nchar (ap_topics$term)>=3),]
 # represent
 ap_top_terms <- ap_topics %>%
   group_by(topic) %>%
-  slice_max(beta, n = 10) %>% 
+  slice_max(beta, n = 15) %>% 
   ungroup() %>%
   arrange(topic, -beta)
 
 # labels
 labels_facet <- c(
-  `1` = "Mammal ecology and taxonomy",
+  `1` = "Ecology and taxonomy",
   `2` = "Species distribution",
   `3` = "Population ecology"
-  
-  
+
 )
+
+# order topic based on the sum of gamma
 
 plot3 <- ap_top_terms %>%
   mutate(term = reorder_within(term, beta, topic)) %>%
@@ -319,11 +320,11 @@ plot3 <- ap_top_terms %>%
   facet_wrap(~ topic, scales = "free",
              labeller = as_labeller(labels_facet))+
              theme_classic() + 
-  theme (axis.text.y = element_text(size=8),
+  theme (axis.text.y = element_text(size=6),
          axis.text.x = element_text(size=7, angle=45))+
   scale_y_reordered() + 
   scale_fill_viridis_d(option="magma",begin=0.1,end = 0.8) + 
-  xlab("Probability (Latent Dirichlet allocation, LDA)") + 
+  xlab("Term probability (Latent Dirichlet Allocation, LDA)") + 
   ylab("Term") + 
   ggtitle("B) Topic modeling")
 
@@ -336,6 +337,11 @@ chapters_gamma <-  reshape::cast (data = chapters_gamma,
       values = "gamma")
 chapters_gamma <- cbind (chapters_gamma,
                          authors = subset_data$Authors)
+
+# topics with more publications
+
+colSums(chapters_gamma[,2:4])
+
 # save
 write.xlsx(chapters_gamma,
            file = here ("output", "gamma.xlsx"))
@@ -363,12 +369,12 @@ barplot_taxon <- ggplot (tab_taxon, aes(x= reorder(Var1, -Freq ),
   theme_classic() + 
   xlab("Mammalian order") +
   ylab("Number of articles") +
-  ggtitle ("D) Taxonomic coverage")+
+  ggtitle ("C) Taxonomic coverage")+
   theme(axis.text.x = element_text(angle=45,size=8),
         legend.position = "none") + 
   scale_fill_viridis_c(option="magma", direction=-1,begin=0.2) + 
   geom_smooth(se=F,col = "gray70") + 
-  scale_y_continuous(breaks = seq(0, max(data_bar$n_pub), 
+  scale_y_continuous(breaks = seq(0, max(tab_taxon$Freq), 
                                   len = 5))
 barplot_taxon
 
