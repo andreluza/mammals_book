@@ -170,6 +170,31 @@ plot2_total <- plot2_total + geom_polygon(data=campos,
 plot2_total
 
 
+# research conducted within PAs
+
+PAs <- readOGR(dsn= here("data","MPAs"),encoding="latin1", 
+                 layer="cnuc_2021_02")
+crs (PAs) <- "+proj=longlat +ellps=GRS80 +no_defs" # set crs
+
+
+# overlap coordinates
+PAs_overlap <- over (complet_set_of_coordinates_sp, 
+              (PAs))
+
+
+# protected (FALSE) or not (TRUE)
+table(is.na(PAs_overlap$nome_uc))/sum(table(is.na(PAs_overlap$nome_uc)))
+
+# autarchy
+table (PAs_overlap$esfera)/sum(table (PAs_overlap$esfera))
+
+# regime
+table (PAs_overlap$grupo)/sum(table (PAs_overlap$grupo))
+
+# type
+table (PAs_overlap$categoria)/sum(table (PAs_overlap$categoria))
+
+
 
 # papers per year
 
